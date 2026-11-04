@@ -6,8 +6,9 @@ import pandas as pd
 import openpyxl
 import gspread
 
+# 페이지 기본 설정
 st.set_page_config(
-    page_title="원재료 수불부 출고 자동 연동기",
+    page_title="원재료 수불부 자동 연동기",
     page_icon="🥬",
     layout="wide"
 )
@@ -100,16 +101,52 @@ if uploaded_file is not None:
         
         st.subheader("📋 출고 수불부 변환 결과 (반올림 완료)")
         st.caption(f"총 {len(df_result)}건의 일일 출고 내역 (원물 포함 및 정수 반올림 적용)")
-        st.dataframe(df_result, use_container_width=True)
         
-        # 10월 원재료별 총 누적 출고량
+        # [오류 방지 조치 1] 동적 JS 번들을 요구하는 st.dataframe 대신 순수 HTML 렌더링 사용
+        table_html = df_result.to_html(classes="styled-table", index=False)
+        st.markdown(
+            f"""
+            <style>
+            .table-container {{
+                max-height: 420px;
+                overflow-y: auto;
+                border: 1px solid #444;
+                border-radius: 6px;
+                margin-bottom: 20px;
+            }}
+            .styled-table {{
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 14px;
+                text-align: center;
+            }}
+            .styled-table th {{
+                background-color: #2b313e;
+                color: #ffffff;
+                position: sticky;
+                top: 0;
+                padding: 10px;
+                border-bottom: 2px solid #555;
+            }}
+            .styled-table td {{
+                padding: 8px;
+                border-bottom: 1px solid #333;
+            }}
+            </style>
+            <div class="table-container">
+                {table_html}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        
+        # 10월 원재료별 총 누적 출고량 요약
         st.markdown("### 📊 10월 원재료별 총 출고 수량 합계")
         summary = df_result.groupby("원료명")["수량(kg)"].sum().reset_index()
-        col1, col2 = st.columns([1, 2])
-        with col1:
-            st.dataframe(summary, use_container_width=True)
-        with col2:
-            st.bar_chart(summary.set_index("원료명")["수량(kg)"])
+        summary.columns = ["원료명", "총 출고량(kg)"]
+        
+        # [오류 방지 조치 2] 동적 차트 모듈 오류 방지를 위해 st.table 정적 테이블 렌더링 사용
+        st.table(summary)
 
         # CSV 다운로드 버튼
         st.markdown("---")

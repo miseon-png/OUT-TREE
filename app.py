@@ -19,7 +19,7 @@ st.markdown("""
 배합비로 인한 소수점은 **전부 반올림(정수)**하여 **야채 원재료 수불부**로 자동 전송합니다.
 """)
 
-# 원재료 시트 열 매핑 (열 인덱스: 4=카이피라, 7=프릴아이스, 10=버터헤드, 13=레드오크, 16=로메인, 19=치커리, 22=적근대, 25=케일)
+# 원재료 시트 열 매핑 (4=카이피라, 7=프릴아이스, 10=버터헤드, 13=레드오크, 16=로메인, 19=치커리, 22=적근대, 25=케일)
 MATERIALS_MAP = {
     4: "카이피라",
     7: "프릴아이스",
@@ -102,50 +102,15 @@ if uploaded_file is not None:
         st.subheader("📋 출고 수불부 변환 결과 (반올림 완료)")
         st.caption(f"총 {len(df_result)}건의 일일 출고 내역 (원물 포함 및 정수 반올림 적용)")
         
-        # [오류 방지 조치 1] 동적 JS 번들을 요구하는 st.dataframe 대신 순수 HTML 렌더링 사용
-        table_html = df_result.to_html(classes="styled-table", index=False)
-        st.markdown(
-            f"""
-            <style>
-            .table-container {{
-                max-height: 420px;
-                overflow-y: auto;
-                border: 1px solid #444;
-                border-radius: 6px;
-                margin-bottom: 20px;
-            }}
-            .styled-table {{
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 14px;
-                text-align: center;
-            }}
-            .styled-table th {{
-                background-color: #2b313e;
-                color: #ffffff;
-                position: sticky;
-                top: 0;
-                padding: 10px;
-                border-bottom: 2px solid #555;
-            }}
-            .styled-table td {{
-                padding: 8px;
-                border-bottom: 1px solid #333;
-            }}
-            </style>
-            <div class="table-container">
-                {table_html}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        # 순수 내장 정적 테이블 출력 (HTML 태그 노출 및 JS 번들 오류 완전 방지)
+        st.table(df_result.head(30))
+        if len(df_result) > 30:
+            st.caption(f"※ 화면에는 가독성을 위해 상위 30건만 미리보기로 표시됩니다. (전체 {len(df_result)}건은 하단 다운로드 및 구글 시트로 모두 전송됩니다)")
         
         # 10월 원재료별 총 누적 출고량 요약
         st.markdown("### 📊 10월 원재료별 총 출고 수량 합계")
         summary = df_result.groupby("원료명")["수량(kg)"].sum().reset_index()
         summary.columns = ["원료명", "총 출고량(kg)"]
-        
-        # [오류 방지 조치 2] 동적 차트 모듈 오류 방지를 위해 st.table 정적 테이블 렌더링 사용
         st.table(summary)
 
         # CSV 다운로드 버튼

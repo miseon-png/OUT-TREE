@@ -19,7 +19,7 @@ st.markdown("""
 배합비로 인한 소수점은 **전부 반올림(정수)**하여 **야채 원재료 수불부**로 자동 전송합니다.
 """)
 
-# 원재료 시트 열 매핑 (4=카이피라, 7=프릴아이스, 10=버터헤드, 13=레드오크, 16=로메인, 19=치커리, 22=적근대, 25=케일)
+# 원재료 시트 열 매핑
 MATERIALS_MAP = {
     4: "카이피라",
     7: "프릴아이스",
@@ -63,13 +63,10 @@ def parse_work_standard(file_bytes, partner_name="생산투입"):
             kg_22 = float(val_22) if val_22 not in (None, "") else 0.0
             kg_23 = float(val_23) if val_23 not in (None, "") else 0.0
             
-            # 총 소요량 = 투입합계 + 원물
             total_kg = kg_22 + kg_23
-            
-            # 소수점 반올림 처리
             final_kg = round_half_up(total_kg)
             
-            if final_kg > 0:  # 출고 수량이 있는 품목만 반영
+            if final_kg > 0:
                 note = f"작업기준서 {sheet}일자 출고"
                 if kg_23 > 0:
                     note += f" (원물 {int(kg_23)}kg 포함)"
@@ -102,18 +99,18 @@ if uploaded_file is not None:
         st.subheader("📋 출고 수불부 변환 결과 (반올림 완료)")
         st.caption(f"총 {len(df_result)}건의 일일 출고 내역 (원물 포함 및 정수 반올림 적용)")
         
-        # 순수 내장 정적 테이블 출력 (HTML 태그 노출 및 JS 번들 오류 완전 방지)
+        # 순수 테이블 출력
         st.table(df_result.head(30))
         if len(df_result) > 30:
-            st.caption(f"※ 화면에는 가독성을 위해 상위 30건만 미리보기로 표시됩니다. (전체 {len(df_result)}건은 하단 다운로드 및 구글 시트로 모두 전송됩니다)")
+            st.caption(f"※ 화면에는 상위 30건만 미리보기로 표시됩니다. (전체 {len(df_result)}건은 하단 다운로드 및 구글 시트로 모두 전송됩니다)")
         
-        # 10월 원재료별 총 누적 출고량 요약
+        # 원재료별 총 누적 출고량
         st.markdown("### 📊 10월 원재료별 총 출고 수량 합계")
         summary = df_result.groupby("원료명")["수량(kg)"].sum().reset_index()
         summary.columns = ["원료명", "총 출고량(kg)"]
         st.table(summary)
 
-        # CSV 다운로드 버튼
+        # CSV 다운로드
         st.markdown("---")
         csv_data = df_result.to_csv(index=False, encoding="utf-8-sig").encode("utf-8-sig")
         st.download_button(
@@ -131,11 +128,16 @@ if uploaded_file is not None:
         if "gcp_service_account" in st.secrets:
             if st.button("구글 스프레드시트에 지금 추가하기", type="primary"):
                 with st.spinner("구글 스프레드시트에 출고 데이터를 기록하는 중..."):
-                    gc = gspread.service_account_from_dict(st.secrets["gcp_service_account"])
+                    # Secrets 딕셔너리 복사 및 private_key 줄바꿈 안전 보정
+                    credentials_dict = dict(st.secrets["gcp_service_account"])
+                    if "private_key" in credentials_dict:
+                        credentials_dict["private_key"] = credentials_dict["private_key"].replace("\\n", "\n")
+                    
+                    gc = gspread.service_account_from_dict(credentials_dict)
                     sh = gc.open_by_url(sheet_url)
                     ws = sh.worksheet("시트1")
                     
-                    # 수불부 시트 맨 아래에 행 일괄 추가
+                    # 수불부 데이터 일괄 추가
                     append_rows = df_result.values.tolist()
                     ws.append_rows(append_rows)
                     st.success("✅ [가공 + 원물 반올림] 출고 데이터가 구글 시트 맨 아래에 성공적으로 반영되었습니다!")
